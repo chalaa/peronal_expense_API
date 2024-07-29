@@ -13,7 +13,7 @@ class CategoryController extends Controller
     public function index()
     {
         //
-        $all_category = Auth::user()->categories->all();
+        $all_category = Auth::user()->categories;
         return response()->json($all_category);
     }
 
@@ -24,7 +24,7 @@ class CategoryController extends Controller
     {
         //validate the request
         $request->validate([
-            'name' => ['required','string']
+            'name' => ['required','string','unique:categories,name']
         ]);
 
         $category = Auth::user()->categories()->create([
@@ -34,7 +34,7 @@ class CategoryController extends Controller
         return response()->json([
             'message' => 'Category Added successfully',
             'category' => $category
-        ]);
+        ],201);
     }
 
     /**
@@ -60,7 +60,7 @@ class CategoryController extends Controller
     {
         //validate request
         $request->validate([
-            'name' => ['required','string']
+            'name' => ['required','string','unique:categories,name']
         ]);
 
         $all_category = Auth::user()->categories;

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ExpenseController extends Controller
 {
@@ -12,6 +13,8 @@ class ExpenseController extends Controller
     public function index()
     {
         //
+        $all_expense = Auth::user()->expenses;
+        return response()->json($all_expense);
     }
 
     /**
@@ -20,6 +23,20 @@ class ExpenseController extends Controller
     public function store(Request $request)
     {
         //
+        $request->validate([
+            'amount' => ['required','numeric'],
+            'description' =>['required','string'] ,
+            'category_id' => ['required','integer'] ,
+            'date' => ['required','date'],
+        ]);
+
+        $expense = Auth::user()->expenses()->create($request->all());
+
+        return response()->json([
+            'message' => 'Expense created successfully',
+            'expense' => $expense
+        ], 201);
+        
     }
 
     /**
@@ -28,6 +45,14 @@ class ExpenseController extends Controller
     public function show(string $id)
     {
         //
+        $all_expense = Auth::user()->expenses;
+        $expense = $all_expense->find($id);
+
+        if (!$expense) {
+            return response()->json(['message' => 'Expense not found'], 404);
+        }
+
+        return response()->json($expense);  
     }
 
     /**
@@ -36,6 +61,25 @@ class ExpenseController extends Controller
     public function update(Request $request, string $id)
     {
         //
+        $request->validate([
+            'amount'=> ['numeric'],
+            'description'=> ['string'],
+            'category_id'=> ['integer'],
+            'date'=> ['date'],
+        ]);
+
+        $all_expense = Auth::user()->expenses;
+        $expense = $all_expense->find($id);
+        if (!$expense) {
+            return response()->json(['message' => 'Expense not found'], 404);
+        }
+
+        $expense->update($request->all());
+
+        return response()->json([
+            'message' => 'Expense updated successfully',
+            'expense' => $expense
+        ]);
     }
 
     /**
@@ -44,5 +88,15 @@ class ExpenseController extends Controller
     public function destroy(string $id)
     {
         //
+        $all_expense = Auth::user()->expenses;
+        $expense = $all_expense->find($id);
+
+        if (!$expense) {
+            return response()->json(['message'=> 'Expense not Found'],404);
+        }
+        $expense->delete();
+        return response()->json([
+            'message' => 'Expense deleted successfully'
+        ]);
     }
 }
