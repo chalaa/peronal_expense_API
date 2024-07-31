@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-
+use App\Http\Resources\IncomeResource;
 class IncomeController extends Controller
 {
     /**
@@ -14,7 +14,7 @@ class IncomeController extends Controller
     {
         //get all auth user income list
         $all_incomes = Auth::user()->incomes;
-        return response()->json($all_incomes);
+        return IncomeResource::collection($all_incomes);
 
     }
 
@@ -33,10 +33,7 @@ class IncomeController extends Controller
 
         $income = Auth::user()->incomes()->create($request->all());
 
-        return response()->json([
-            'message' => 'Income Added successfully',
-            'income' => $income
-        ],201);
+        return new IncomeResource($income);
 
 
     }
@@ -54,7 +51,7 @@ class IncomeController extends Controller
             return response()->json(['message' => 'Income not found'], 404);
         }
 
-        return response()->json($income);
+        return new IncomeResource($income);
     }
 
     /**
@@ -79,10 +76,7 @@ class IncomeController extends Controller
 
         $income->update($request->all());
 
-        return response()->json([
-            'message' => 'Income updated successfully',
-            'income' => $income
-        ]);
+        return new IncomeResource($income);
 
 
     }

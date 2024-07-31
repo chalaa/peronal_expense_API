@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use DateTime;
 use PHPOpenSourceSaver\JWTAuth\Contracts\Providers\JWT;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use PHPOpenSourceSaver\JWTAuth\JWTAuth as JWTAuthJWTAuth;
@@ -98,5 +99,51 @@ class AuthController extends Controller
                 'type' => 'bearer',
             ]
         ]);
+    }
+
+    // dashboard data
+
+    public function dashboard( ) {
+
+        $all_expense = Auth::user()->expenses;
+        $all_income = Auth::user()->incomes;
+        
+       
+        function calculateMonthlyAmounts($expenses) {
+            $currentDate = new DateTime();
+
+            // Initialize an array with 0 amounts for the last 6 months
+            $monthlyAmounts = array_fill(0, 6, 0);
+            $monthNames = [];
+            
+            // Loop through the last 6 months
+            for ($i = 0; $i <= 6; $i++) {
+                $monthNames[$i] = $currentDate->format('F');
+                $monthlyAmounts[$i] = 0;
+                $currentDate->modify('-1 month');
+            }
+            
+            // Reset current date to the end of the last month to start filtering
+            $currentDate = new DateTime();
+            $endDate = clone $currentDate;
+            $startDate = (clone $currentDate)->modify('-5 months')->modify('first day of this month');
+            
+            // Loop through expenses to sum amounts by month for the last 6 months
+            foreach ($expenses as $expense) {
+                $expenseDate = new DateTime($expense['date']);
+                if ($expenseDate >= $startDate && $expenseDate <= $endDate) {
+                    $index = 5 - $expenseDate->diff($startDate)->m;
+                    $monthlyAmounts[$index] += $expense['amount'];
+                }
+            }
+            
+            // Map the amounts to their respective month names
+            $monthlyAmountsWithNames = array_combine(array_reverse($monthNames), array_reverse($monthlyAmounts));
+            
+            // Print the results
+            return $monthlyAmountsWithNames ;
+        }
+        
+        return [calculateMonthlyAmounts($all_expense),calculateMonthlyAmounts($all_income)];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ExpenseResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +15,7 @@ class ExpenseController extends Controller
     {
         //
         $all_expense = Auth::user()->expenses;
-        return response()->json($all_expense);
+        return ExpenseResource::collection($all_expense);
     }
 
     /**
@@ -32,10 +33,7 @@ class ExpenseController extends Controller
 
         $expense = Auth::user()->expenses()->create($request->all());
 
-        return response()->json([
-            'message' => 'Expense created successfully',
-            'expense' => $expense
-        ], 201);
+        return new ExpenseResource($expense);
         
     }
 
@@ -52,7 +50,7 @@ class ExpenseController extends Controller
             return response()->json(['message' => 'Expense not found'], 404);
         }
 
-        return response()->json($expense);  
+        return new ExpenseResource($expense);  
     }
 
     /**
@@ -76,10 +74,7 @@ class ExpenseController extends Controller
 
         $expense->update($request->all());
 
-        return response()->json([
-            'message' => 'Expense updated successfully',
-            'expense' => $expense
-        ]);
+        return new ExpenseResource($expense);
     }
 
     /**
