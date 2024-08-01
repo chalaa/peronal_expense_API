@@ -14,70 +14,72 @@ use PHPOpenSourceSaver\JWTAuth\JWTAuth as JWTAuthJWTAuth;
 class AuthController extends Controller
 {
     // register the User
-    public function register(Request $request){
+    public function register(Request $request)
+    {
         $request->validate([
-            'name' => ['required','string'],
-            'email'=> ['required','string','email'],
-            'password'=> ['required','string','confirmed','min:8']
+            'name' => ['required', 'string'],
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string', 'confirmed', 'min:8']
         ]);
 
         $user = User::create([
-            'name'=> $request->name,
-            'email'=> $request->email,
-            'password'=> Hash::make($request->password),
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
         ]);
 
         // Authenticate user
         $token = JWTAuth::fromUser($user);
 
         return response()->json([
-            'status'=> 'success',
-            'user'=> $user,
+            'status' => 'success',
+            'user' => $user,
             'authorisation' =>  [
-                'token'=> $token,
+                'token' => $token,
                 'type' => 'bearer'
             ]
-        ],200);
-
+        ], 200);
     }
 
     // login
-    public function login(Request $request){
+    public function login(Request $request)
+    {
         // validate the request
         $request->validate([
-            "email"=> ["required","email"],
-            "password"=> ["required","string",'min:8'],
+            "email" => ["required", "email"],
+            "password" => ["required", "string", 'min:8'],
         ]);
-        
-        $credential = $request->only('email','password');
 
-        if (!Auth::attempt($credential)){
+        $credential = $request->only('email', 'password');
+
+        if (!Auth::attempt($credential)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Invalid Credential'
-            ],401);
+            ], 401);
         }
 
         // Authenticate user
         $user = Auth::user();
         $token = JWTAuth::fromUser($user);
         return response()->json([
-            'status'=> 'success',
-            'user'=> $user,
+            'status' => 'success',
+            'user' => $user,
             'authorisation' =>  [
-                'token'=> $token,
+                'token' => $token,
                 'type' => 'bearer'
             ]
-        ],200);
+        ], 200);
     }
 
     // logout
 
-    public function logout(){
+    public function logout()
+    {
         Auth::logout();
         return response()->json([
-            'status'=> 'success',
-            'message'=> 'Successfully logged out'
+            'status' => 'success',
+            'message' => 'Successfully logged out'
         ]);
     }
 
@@ -103,32 +105,31 @@ class AuthController extends Controller
 
     // dashboard data
 
-    public function dashboard( ) {
+    public function dashboard()
+    {
 
         $all_expense = Auth::user()->expenses;
         $all_income = Auth::user()->incomes;
-        
-       
-        function calculateMonthlyAmounts($expenses) {
-            $currentDate = new DateTime();
 
-            // Initialize an array with 0 amounts for the last 6 months
+
+        function calculateMonthlyAmounts($expenses)
+        {
+            $currentDate = new DateTime();
             $monthlyAmounts = array_fill(0, 6, 0);
             $monthNames = [];
-            
-            // Loop through the last 6 months
-            for ($i = 0; $i <= 6; $i++) {
+        
+            // Prepare month names and initialize monthly totals
+            for ($i = 0; $i < 6; $i++) {
                 $monthNames[$i] = $currentDate->format('F');
                 $monthlyAmounts[$i] = 0;
                 $currentDate->modify('-1 month');
             }
-            
-            // Reset current date to the end of the last month to start filtering
+        
             $currentDate = new DateTime();
             $endDate = clone $currentDate;
             $startDate = (clone $currentDate)->modify('-5 months')->modify('first day of this month');
-            
-            // Loop through expenses to sum amounts by month for the last 6 months
+        
+            // Loop through expenses to sum amounts by month
             foreach ($expenses as $expense) {
                 $expenseDate = new DateTime($expense['date']);
                 if ($expenseDate >= $startDate && $expenseDate <= $endDate) {
@@ -136,14 +137,61 @@ class AuthController extends Controller
                     $monthlyAmounts[$index] += $expense['amount'];
                 }
             }
-            
-            // Map the amounts to their respective month names
-            $monthlyAmountsWithNames = array_combine(array_reverse($monthNames), array_reverse($monthlyAmounts));
-            
-            // Print the results
-            return $monthlyAmountsWithNames ;
-        }
         
-        return [calculateMonthlyAmounts($all_expense),calculateMonthlyAmounts($all_income)];
+            // Combine month names and total amounts into an indexed array
+            $monthlyAmountsWithNames = [];
+            foreach (array_reverse($monthlyAmounts) as $index => $amount) {
+                $monthlyAmountsWithNames[$index] = [
+                    'month' => $monthNames[5 - $index],
+                    'amount' => $amount
+                ];
+            }
+        
+            return $monthlyAmountsWithNames;
+        }
+
+        function calculateCategoryTotals($expenses)
+{
+    // Get the current date
+    $currentDate = new DateTime();
+
+    // Calculate the start date for the last 6 months
+    $startDate = (clone $currentDate)->modify('first day of this month');
+    $startDate->modify('-5 months');
+
+    // Initialize an array to store category totals
+    $categoryTotals = [];
+
+    // Loop through expenses to sum amounts by category for the last 6 months
+    foreach ($expenses as $expense) {
+        $expenseDate = new DateTime($expense['date']);
+        if ($expenseDate >= $startDate) {
+            $categoryName = $expense['category']['name'];
+            if (!isset($categoryTotals[$categoryName])) {
+                $categoryTotals[$categoryName] = 0;
+            }
+            $categoryTotals[$categoryName] += $expense['amount'];
+        }
+    }
+
+    // Transform the totals into the desired format
+    $indexedCategoryTotals = [];
+    $index = 0;
+    foreach ($categoryTotals as $categoryName => $totalAmount) {
+        $indexedCategoryTotals[$index] = [
+            'category' => $categoryName,
+            'amount' => $totalAmount
+        ];
+        $index++;
+    }
+
+    return $indexedCategoryTotals;
+}
+
+        return response()->json([
+            "expense" => calculateMonthlyAmounts($all_expense),
+            "income" => calculateMonthlyAmounts($all_income),
+            "category" => calculateCategoryTotals($all_expense)
+        ]);
     }
 }
