@@ -33,10 +33,15 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
+            // Authenticate user
+            $token = JWTAuth::fromUser($user);
+            
+            $user = User::find($user->id);
+
             return response()->json([
             'status' => 'success',
             'user' => $user,
-            'token' => $token,
+            'access_token' => $token,
             'type' => 'bearer'
         ], 201);
         } catch (ValidationException $e) {
@@ -75,7 +80,7 @@ class AuthController extends Controller
             return response()->json([
                 'status' => 'success',
                 'user' => $user,
-                'token' => $token,
+                'access_token' => $token,
                 'type' => 'bearer'
             ], 200);
         } catch (JWTException $e) {
@@ -107,13 +112,6 @@ class AuthController extends Controller
         }
     }
 
-    /*
-    
-    Refresh method
-    This method invalidates the user Auth 
-    token and generates a new token
-
-    */
 
     public function refresh()
     {
@@ -125,6 +123,13 @@ class AuthController extends Controller
 
         try {
             $refreshedToken = JWTAuth::refresh($token);
+            $user = JWTAuth::setToken($refreshedToken)->authenticate();
+            return response()->json([
+                'status' => 'success',
+                'user' => $user,
+                'access_token' => $refreshedToken,
+                'type' => 'bearer'
+            ]);
         } 
         catch(TokenBlacklistedException $e){
             return response()->json(['error' => 'Token has been blacklisted'], 401);
@@ -133,7 +138,6 @@ class AuthController extends Controller
             return response()->json(['error' => 'Could not refresh token'], 500);
         }
 
-        return response()->json(compact('refreshedToken'));
     }
 
     // dashboard data
