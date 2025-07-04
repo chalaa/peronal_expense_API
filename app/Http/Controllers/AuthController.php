@@ -10,77 +10,101 @@ use DateTime;
 use PHPOpenSourceSaver\JWTAuth\Contracts\Providers\JWT;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use PHPOpenSourceSaver\JWTAuth\JWTAuth as JWTAuthJWTAuth;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenBlacklistedException;
+use Illuminate\Validation\ValidationException;  
+
+
 
 class AuthController extends Controller
 {
     // register the User
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => ['required', 'string'],
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string', 'confirmed', 'min:8']
-        ]);
+       try {
+            $request->validate([
+                'name' => ['required', 'string'],
+                'email' => ['required', 'string', 'email', 'unique:users,email'],
+                'password' => ['required', 'string', 'confirmed', 'min:8']
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        // Authenticate user
-        $token = JWTAuth::fromUser($user);
-
-        return response()->json([
+            return response()->json([
             'status' => 'success',
             'user' => $user,
-            'authorisation' =>  [
-                'token' => $token,
-                'type' => 'bearer'
-            ]
-        ], 200);
+            'token' => $token,
+            'type' => 'bearer'
+        ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'messages' => $e->errors()
+            ], 422);
+        }
+        catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while creating the user',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     // login
     public function login(Request $request)
     {
-        // validate the request
-        $request->validate([
-            "email" => ["required", "email"],
-            "password" => ["required", "string", 'min:8'],
-        ]);
+        try {
+            // validate the request
+            $request->validate([
+                "email" => ["required", "email"],
+                "password" => ["required", "string", 'min:8'],
+            ]);
 
-        $credential = $request->only('email', 'password');
+            $credentials = $request->only('email', 'password');
+            if (! $token = JWTAuth::attempt($credentials)) {
+                return response()->json(['error' => 'Invalid credentials'], 401);
+            }
 
-        if (!Auth::attempt($credential)) {
+            $user = Auth::user();
+
+            $token = JWTAuth::claims(['role' => $user->role])->fromUser($user);
+            $type = 'bearer';
             return response()->json([
-                'status' => 'error',
-                'message' => 'Invalid Credential'
-            ], 401);
-        }
-
-        // Authenticate user
-        $user = Auth::user();
-        $token = JWTAuth::fromUser($user);
-        return response()->json([
-            'status' => 'success',
-            'user' => $user,
-            'authorisation' =>  [
+                'status' => 'success',
+                'user' => $user,
                 'token' => $token,
                 'type' => 'bearer'
-            ]
-        ], 200);
+            ], 200);
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'Could not create token'], 500);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'messages' => $e->errors()
+            ], 422);
+        }
+        catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while logging in',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+
     }
 
     // logout
 
     public function logout()
     {
-        Auth::logout();
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Successfully logged out'
-        ]);
+        try {
+            JWTAuth::invalidate(JWTAuth::getToken());
+            return response()->json(['message' => 'Successfully logged out'], 200);
+        } catch (JWTException $e) {
+            return response()->json(['error' => 'Could not invalidate token'], 500);
+        }
     }
 
     /*
@@ -93,14 +117,23 @@ class AuthController extends Controller
 
     public function refresh()
     {
-        return response()->json([
-            'status' => 'success',
-            'user' => Auth::user(),
-            'authorisation' => [
-                'token' => Auth::refresh(),
-                'type' => 'bearer',
-            ]
-        ]);
+        $token = JWTAuth::getToken();
+
+        if (!$token) {
+            return response()->json(['error' => 'Token not provided'], 400);
+        }
+
+        try {
+            $refreshedToken = JWTAuth::refresh($token);
+        } 
+        catch(TokenBlacklistedException $e){
+            return response()->json(['error' => 'Token has been blacklisted'], 401);
+        }
+        catch (JWTException $e) {
+            return response()->json(['error' => 'Could not refresh token'], 500);
+        }
+
+        return response()->json(compact('refreshedToken'));
     }
 
     // dashboard data

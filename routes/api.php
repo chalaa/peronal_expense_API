@@ -7,17 +7,14 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\ExpenseController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
 
 Route::post('/register', [AuthController::class,'register'])->name('register_user');
 Route::post('/login', [AuthController::class,'login'])->name('login');
+Route::post('/refresh',[AuthController::class,'refresh'])->name('refresh');
 
 Route::middleware('auth:api')->group(function () {
     Route::get('/dashboard',[AuthController::class,'dashboard'])->name('dashboard');
-    Route::get('/logout',[AuthController::class,'logout'])->name('logout');
-    Route::get('/refresh',[AuthController::class,'refresh'])->name('refresh');
+    Route::post('/logout',[AuthController::class,'logout'])->name('logout');
 
     // category
     Route::get('/category', [CategoryController::class, 'index'])->name('category.index');
