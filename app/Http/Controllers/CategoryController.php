@@ -17,7 +17,12 @@ class CategoryController extends Controller
         //
         try{
             $all_category = Auth::user()->categories;
-            return response()->json($all_category);
+
+            // Group categories by 'type' (income/expense)
+            $grouped = $all_category->groupBy('type')->map(function ($items) {
+                return $items->values(); // Reset array keys for frontend
+            });
+            return response()->json($grouped);
         }
         catch(ModelNotFoundException $e){
             // if category not found retun 404 resource not found

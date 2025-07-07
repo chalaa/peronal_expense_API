@@ -17,11 +17,11 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/logout',[AuthController::class,'logout'])->name('logout');
 
     // category
-    Route::get('/category', [CategoryController::class, 'index'])->name('category.index');
-    Route::post('/category', [CategoryController::class, 'store'])->name('category.store');
-    Route::get('/category/{id}', [CategoryController::class, 'show'])->name('category.show');
-    Route::put('/category/{id}', [CategoryController::class, 'update'])->name('category.update');
-    Route::delete('/category/{id}', [CategoryController::class, 'destroy'])->name('category.destroy');
+    Route::get('/categories', [CategoryController::class, 'index'])->name('category.index');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('category.store');
+    Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('category.show');
+    Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('category.update');
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('category.destroy');
 
     // income
     Route::get('/income', [IncomeController::class, 'index'])->name('income.index');
