@@ -7,16 +7,38 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 use DateTime;
-use PHPOpenSourceSaver\JWTAuth\Contracts\Providers\JWT;
+use Doctrine\Common\Lexer\Token;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
-use PHPOpenSourceSaver\JWTAuth\JWTAuth as JWTAuthJWTAuth;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenInvalidException;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenExpiredException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenBlacklistedException;
-use Illuminate\Validation\ValidationException;  
-
-
+use Illuminate\Validation\ValidationException;
+use Termwind\Exceptions\InvalidChild;
 
 class AuthController extends Controller
 {
+
+    // get loged in user
+
+    public function getuser(Request $request){
+        try{
+            $token = JWTAuth::getToken();
+            $user = JWTAuth::setToken($token)->authenticate();
+
+            return response()->json([
+                'status' => 'success',
+                'user' => $user,
+            ], 200);
+
+        }
+        catch(\Exception $e){
+            return response()->json([
+                'status'=> 'error',
+                'message'=> $e->getMessage(),
+            ]);
+        }
+    }
     // register the User
     public function register(Request $request)
     {
@@ -107,7 +129,13 @@ class AuthController extends Controller
         try {
             JWTAuth::invalidate(JWTAuth::getToken());
             return response()->json(['message' => 'Successfully logged out'], 200);
-        } catch (JWTException $e) {
+        }catch(TokenInvalidException){
+            return response()->json(['message'=> 'Invalid Token'], 400);
+        }
+        catch(TokenExpiredException){
+            return response()->json(['message'=> 'Token has expired'], 400);
+        }
+        catch (JWTException $e) {
             return response()->json(['error' => 'Could not invalidate token'], 500);
         }
     }
@@ -132,7 +160,10 @@ class AuthController extends Controller
             ]);
         } 
         catch(TokenBlacklistedException $e){
-            return response()->json(['error' => 'Token has been blacklisted'], 401);
+            return response()->json(['error' => $e], 401);
+        }
+        catch(TokenExpiredException $e) {
+            return response()->json(['error'=> $e], 400);
         }
         catch (JWTException $e) {
             return response()->json(['error' => 'Could not refresh token'], 500);

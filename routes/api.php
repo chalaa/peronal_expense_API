@@ -15,6 +15,7 @@ Route::post('/refresh',[AuthController::class,'refresh'])->name('refresh');
 Route::middleware('auth:api')->group(function () {
     Route::get('/dashboard',[AuthController::class,'dashboard'])->name('dashboard');
     Route::post('/logout',[AuthController::class,'logout'])->name('logout');
+    Route::get('/me', [AuthController::class, 'getuser'])->name('me');
 
     // category
     Route::get('/categories', [CategoryController::class, 'index'])->name('category.index');

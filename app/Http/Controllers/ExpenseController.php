@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Resources\ExpenseResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;  
+use Illuminate\Validation\Rule;
 
 class ExpenseController extends Controller
 {
@@ -14,8 +17,25 @@ class ExpenseController extends Controller
     public function index()
     {
         //
-        $all_expense = Auth::user()->expenses;
-        return ExpenseResource::collection($all_expense);
+        try{
+            $all_expense = Auth::user()->expenses;
+            return ExpenseResource::collection($all_expense);
+
+        }catch(ModelNotFoundException $e){
+            // if category not found retun 404 resource not found
+            return response()->json([
+                'error' => 'Expense not found',
+                'message' => 'No Expense available'
+            ], 404);
+        }
+        catch(\Exception $e){
+
+            return response()->json([
+                'error' => 'An error occurred while fetching expense',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+        
     }
 
     /**
@@ -23,18 +43,35 @@ class ExpenseController extends Controller
      */
     public function store(Request $request)
     {
-        //
-        $request->validate([
-            'amount' => ['required','numeric'],
-            'description' =>['required','string'] ,
-            'category_id' => ['required','integer'] ,
-            'date' => ['required','date'],
+        try {
+            $validated = $request->validate([
+            'amount' => ['required', 'numeric'],
+            'description' => ['required', 'string'],
+            'category_id' => [
+                'required',
+                'integer',
+                Rule::exists('categories', 'id')->where(function ($query) {
+                    $query->where('type', 'expense')
+                          ->where('user_id', Auth::id());
+                }),
+            ],
+            'date' => ['required', 'date'],
         ]);
 
-        $expense = Auth::user()->expenses()->create($request->all());
+            $expense = Auth::user()->expenses()->create($validated);
 
-        return new ExpenseResource($expense);
-        
+            return new ExpenseResource($expense);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation error',
+                'messages' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while creating the expense',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -42,15 +79,17 @@ class ExpenseController extends Controller
      */
     public function show(string $id)
     {
-        //
-        $all_expense = Auth::user()->expenses;
-        $expense = $all_expense->find($id);
-
-        if (!$expense) {
+        try {
+            $expense = Auth::user()->expenses()->findOrFail($id);
+            return new ExpenseResource($expense);
+        } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Expense not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while fetching the expense',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        return new ExpenseResource($expense);  
     }
 
     /**
@@ -58,23 +97,38 @@ class ExpenseController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
-        $request->validate([
-            'amount'=> ['numeric'],
-            'description'=> ['string'],
-            'category_id'=> ['integer'],
-            'date'=> ['date'],
-        ]);
+        try {
+            $expense = Auth::user()->expenses()->findOrFail($id);
 
-        $all_expense = Auth::user()->expenses;
-        $expense = $all_expense->find($id);
-        if (!$expense) {
+            $validated = $request->validate([
+                'amount' => ['numeric'],
+                'description' => ['string'],
+                'category_id' => [
+                    'integer',
+                    Rule::exists('categories', 'id')->where(function ($query) {
+                        $query->where('type', 'expense')
+                            ->where('user_id', Auth::id());
+                    }),
+                ],
+                'date' => ['date'],
+            ]);
+
+            $expense->update($validated);
+
+            return new ExpenseResource($expense);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation error',
+                'messages' => $e->errors()
+            ], 422);
+        } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Expense not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while updating the expense',
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        $expense->update($request->all());
-
-        return new ExpenseResource($expense);
     }
 
     /**
@@ -82,16 +136,20 @@ class ExpenseController extends Controller
      */
     public function destroy(string $id)
     {
-        //
-        $all_expense = Auth::user()->expenses;
-        $expense = $all_expense->find($id);
+        try {
+            $expense = Auth::user()->expenses()->findOrFail($id);
+            $expense->delete();
 
-        if (!$expense) {
-            return response()->json(['message'=> 'Expense not Found'],404);
+            return response()->json([
+                'message' => 'Expense deleted successfully'
+            ]);
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Expense not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'An error occurred while deleting the expense',
+                'message' => $e->getMessage()
+            ], 500);
         }
-        $expense->delete();
-        return response()->json([
-            'message' => 'Expense deleted successfully'
-        ]);
     }
 }

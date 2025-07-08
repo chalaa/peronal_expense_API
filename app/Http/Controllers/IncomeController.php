@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use App\Http\Resources\IncomeResource;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+
 class IncomeController extends Controller
 {
     /**
@@ -12,10 +16,15 @@ class IncomeController extends Controller
      */
     public function index()
     {
-        //get all auth user income list
-        $all_incomes = Auth::user()->incomes;
-        return IncomeResource::collection($all_incomes);
-
+        try {
+            $incomes = Auth::user()->incomes;
+            return IncomeResource::collection($incomes);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch incomes',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -23,19 +32,35 @@ class IncomeController extends Controller
      */
     public function store(Request $request)
     {
-        //validate the request
-        $request->validate([
-            "amount" => ['required','numeric'],
-            "category_id" => ['required','integer'],
-            "date" => ['required','date'],
-            "description" => ['required','string'],
-        ]);
+        try {
+            $validated = $request->validate([
+                'amount' => ['required', 'numeric'],
+                'category_id' => [
+                    'required',
+                    'integer',
+                    Rule::exists('categories', 'id')->where(function ($query) {
+                        $query->where('type', 'income')
+                              ->where('user_id', Auth::id());
+                    }),
+                ],
+                'date' => ['required', 'date'],
+                'description' => ['required', 'string'],
+            ]);
 
-        $income = Auth::user()->incomes()->create($request->all());
+            $income = Auth::user()->incomes()->create($validated);
+            return new IncomeResource($income);
 
-        return new IncomeResource($income);
-
-
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'messages' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create income',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -43,15 +68,17 @@ class IncomeController extends Controller
      */
     public function show(string $id)
     {
-        //
-        $all_income = Auth::user()->incomes;
-        $income = $all_income->find($id);
-
-        if (!$income) {
+        try {
+            $income = Auth::user()->incomes()->findOrFail($id);
+            return new IncomeResource($income);
+        } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Income not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch income',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        return new IncomeResource($income);
     }
 
     /**
@@ -59,26 +86,38 @@ class IncomeController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
-        $request->validate([
-            "amount" => ['numeric'],
-            "category_id" => ['integer'],
-            "date" => ['date'],
-            "description" => ['string'],
-        ]);
+        try {
+            $income = Auth::user()->incomes()->findOrFail($id);
 
-        $all_income = Auth::user()->incomes;
-        $income = $all_income->find($id);
+            $validated = $request->validate([
+                'amount' => ['numeric'],
+                'category_id' => [
+                    'integer',
+                    Rule::exists('categories', 'id')->where(function ($query) {
+                        $query->where('type', 'income')
+                              ->where('user_id', Auth::id());
+                    }),
+                ],
+                'date' => ['date'],
+                'description' => ['string'],
+            ]);
 
-        if (!$income) {
+            $income->update($validated);
+            return new IncomeResource($income);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'error' => 'Validation failed',
+                'messages' => $e->errors(),
+            ], 422);
+        } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Income not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to update income',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        $income->update($request->all());
-
-        return new IncomeResource($income);
-
-
     }
 
     /**
@@ -86,15 +125,18 @@ class IncomeController extends Controller
      */
     public function destroy(string $id)
     {
-        //
-        $all_income = Auth::user()->incomes;
-        $income = $all_income->find($id);
-        if (!$income) {
+        try {
+            $income = Auth::user()->incomes()->findOrFail($id);
+            $income->delete();
+
+            return response()->json(['message' => 'Income deleted successfully']);
+        } catch (ModelNotFoundException $e) {
             return response()->json(['message' => 'Income not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to delete income',
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        $income->delete();
-
-        return response()->json(['message' => 'Income deleted successfully']);
     }
 }
