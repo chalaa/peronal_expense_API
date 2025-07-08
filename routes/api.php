@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\TransactionController;
 
 
 Route::post('/register', [AuthController::class,'register'])->name('register_user');
@@ -23,6 +24,14 @@ Route::middleware('auth:api')->group(function () {
     Route::get('/categories/{id}', [CategoryController::class, 'show'])->name('category.show');
     Route::put('/categories/{id}', [CategoryController::class, 'update'])->name('category.update');
     Route::delete('/categories/{id}', [CategoryController::class, 'destroy'])->name('category.destroy');
+
+    //transaction
+    Route::get('/transactions', [TransactionController::class, 'index'])->name('transaction.index');
+    Route::post('/transactions', [TransactionController::class, 'store'])->name('transaction.store');
+    Route::get('/transactions/{id}', [TransactionController::class, 'show'])->name('transaction.show');
+    Route::put('/transactions/{id}', [TransactionController::class, 'update'])->name('transaction.update');
+    Route::delete('/transactions/{id}', [TransactionController::class, 'destroy'])->name('transaction.destroy');
+
 
     // income
     Route::get('/income', [IncomeController::class, 'index'])->name('income.index');
