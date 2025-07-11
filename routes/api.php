@@ -7,7 +7,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\TransactionController;
-
+use App\Http\Controllers\BudgetController;
 
 Route::post('/register', [AuthController::class,'register'])->name('register_user');
 Route::post('/login', [AuthController::class,'login'])->name('login');
@@ -32,6 +32,12 @@ Route::middleware('auth:api')->group(function () {
     Route::put('/transactions/{id}', [TransactionController::class, 'update'])->name('transaction.update');
     Route::delete('/transactions/{id}', [TransactionController::class, 'destroy'])->name('transaction.destroy');
 
+    // budget
+    Route::get('/budget', [BudgetController::class, 'index'])->name('budget.index');
+    Route::post('/budget', [BudgetController::class, 'store'])->name('budget.store');
+    Route::get('/budget/{id}', [BudgetController::class, 'show'])->name('budget.show');
+    Route::put('/budget/{id}', [BudgetController::class, 'update'])->name('budget.update');
+    Route::delete('/budget/{id}', [BudgetController::class, 'destroy'])->name('budget.destroy');
 
     // income
     Route::get('/income', [IncomeController::class, 'index'])->name('income.index');
