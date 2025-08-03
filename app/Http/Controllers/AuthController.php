@@ -55,8 +55,12 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
+            $customClaims = [
+                'name' => $user->name,
+                'email' => $user->email,
+            ];
             // Authenticate user
-            $token = JWTAuth::fromUser($user);
+            $token = JWTAuth::claims($customClaims)->fromUser($user);
             
             $user = User::find($user->id);
 
@@ -96,8 +100,12 @@ class AuthController extends Controller
             }
 
             $user = Auth::user();
-
-            $token = JWTAuth::claims(['role' => $user->role])->fromUser($user);
+            $customClaims = [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role
+            ];
+            $token = JWTAuth::claims($customClaims)->fromUser($user);
             $type = 'bearer';
             return response()->json([
                 'status' => 'success',
